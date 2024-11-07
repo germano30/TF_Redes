@@ -13,10 +13,10 @@ Repositório para a documentação e código do trabalho de Fundamento de Redes 
  - Rafael Almeida
  - Vitor Machado
 
-
+[top](#toc)
 ## Introduction
 This work implements an application that simulates the exchange of routing tables and the sending of text messages between routers.
-
+[top](#toc)
 ## Getting Started
 ### Preequisites
  - Python 3.x
@@ -30,9 +30,10 @@ In this file you will write the IP of your neighboring routers
 127.0.0.1
 127.0.0.2
 ```
-
+[top](#toc)
 ## Running the Application
 Navigate to the root directory and run the script:
 ```sh
 Router.py
 ```
+[top](#toc)
