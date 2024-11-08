@@ -3,7 +3,7 @@ import time
 import threading
 
 class Router():
-    def __init__ (self, ip, port = 9000):
+    def __init__ (self, ip = '127.0.0.1', port = 9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
         self.ip = ip
         self.port = port
@@ -52,14 +52,15 @@ class Router():
         """Envia a tabela de roteamento para todos os IPs de destino"""
         message = ''.join([f'@{router['ip_destino']}-{router['metrica']}' for router in self.router_table])
         for ip in self.router_table['ip_destino']:
-            print(f'---> Tabela de roteamento enviada para: {ip}')
-            self.sender(ip=ip,port=self.port,message=message)
+            self.sock.sendto(message.encode(), (ip, self.port))
+            print(f'---> Tabela de roteamento enviada para: {ip}') 
     
     def _send_message(self):
         """Envia uma mensagem para todos os IPs de destino"""
         for ip in self.router_table['ip_destino']:
             message = f'!{self.ip};{ip};Oi tudo bem?'
-            self.sender(ip=ip, port=self.port, message=message)
+            self.sock.sendto(message.encode(), (ip, self.port))
+            print(f'---> Mensagem enviada para: {ip}')
             
     def _receive_router_table(self, routers, addr):
         """Recebe mensagens de roteadores vizinhos e atualiza a tabela de roteamento"""
@@ -79,6 +80,10 @@ class Router():
                     self.router_table['ip_saida'][index] = addr[0]
                     self.router_table['metrica'][index] = metric
     
+    def _print_message(self,message, ip_ori):
+        message = message.split(';')[-1]
+        print(f'---> Mensagem recebia de {ip_ori}: {message}')
+        
     def listen(self):
         """Escuta por mensagens de outros roteadores"""
         self.sock.bind((self.ip, self.port))
@@ -91,12 +96,30 @@ class Router():
             if data.startswith('@'):
                 self._receive_router_table(data, addr)
             elif data.startswith('!'):
-                pass  # TODO adicionar o tratamento para mensagens de dados
+                self._print_message(data,addr[0])
             elif data.startswith('*'):
                 pass  # TODO adicionar o tratamento para mensagens de controle
             else:
                 print(f'Prefixo fora do padrão - {data[0]}')
     
-    def sender(self, ip, port, message):
-        """Envia uma mensagem para um endereço IP específico"""
-        self.sock.sendto(message.encode(), (ip, port))
+    def sender(self):
+        """Envia mensagens para outros roteadores"""
+        while True:
+            self._send_router_table()
+            time.sleep(5)
+            self._send_message()
+            time.sleep(10)
+    
+    def starter(self,filepath):
+        self._read_file(filepath)
+        message = f'*{self.ip}'
+        for ip in self.router_table['ip_destino']:
+            self.sock.sendto(message.encode(), (ip, self.port))
+
+if __name__ == '__main__':
+    router = Router()
+    router.starter('roteadores.txt')
+    listener_thread = threading.Thread(target=router.listen)
+    listener_thread.start()
+    sender_thread = threading.Thread(target=router.sender)
+    sender_thread.start()
