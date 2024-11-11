@@ -5,7 +5,7 @@ from tabulate import tabulate
 from datetime import datetime
 
 class Router():
-    def __init__ (self, ip='192.168.15.21', port=9000):
+    def __init__ (self, ip='172.20.10.11', port=9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
         self.ip = ip
         self.port = port
@@ -45,7 +45,7 @@ class Router():
         inactive = [ip for ip, last_time in self.receive_time.items() if (current_time - last_time) > 35]
         for ip in inactive:
             self._delete_ips_from_inactive_routes(ip)
-            del self.receive_time[ip]
+            self.receive_time = {ip: time for ip, time in self.receive_time.items() if ip != ip}
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Rota inativa removida: {ip}\n")
             self._print_router_table()
                 
@@ -53,10 +53,12 @@ class Router():
         """Remove rotas com IP de saída inativo"""
         idx = [idx for idx, _ in enumerate(self.router_table['ip_destino']) if self.router_table['ip_saida'][idx] == remove_ip]
         for i in idx:
-            del self.router_table['ip_destino'][i]
-            del self.router_table['metrica'][i]
-            del self.router_table['ip_saida'][i]
-            
+            self.router_table = {
+                    'ip_destino': [dest for dest, saida in zip(self.router_table['ip_destino'], self.router_table['ip_saida']) if saida != remove_ip],
+                    'metrica': [metrica for metrica, saida in zip(self.router_table['metrica'], self.router_table['ip_saida']) if saida != remove_ip],
+                    'ip_saida': [saida for saida in self.router_table['ip_saida'] if saida != remove_ip]
+            }
+    
     def _send_router_table(self): 
         """Envia a tabela de roteamento para todos os IPs de destino"""
         message = ''.join([
