@@ -8,7 +8,9 @@ class Router():
         self.ip = ip
         self.port = port
         self.receive_time = {}
-        self.sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.l_sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.w_sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        
     
     def _add_rout(self, dest_ip, metric, source_ip):
         """Adiciona uma rota na tabela de roteamento"""
@@ -50,16 +52,19 @@ class Router():
             
     def _send_router_table(self): 
         """Envia a tabela de roteamento para todos os IPs de destino"""
-        message = ''.join([f'@{router['ip_destino']}-{router['metrica']}' for router in self.router_table])
+        message = ''.join([
+            f"@{ip_dest}-{met}" 
+            for ip_dest, met in zip(self.router_table['ip_destino'], self.router_table['metrica'])
+        ])
         for ip in self.router_table['ip_destino']:
-            self.sock.sendto(message.encode(), (ip, self.port))
+            self.w_sock.sendto(message.encode(), (ip, self.port))
             print(f'---> Tabela de roteamento enviada para: {ip}') 
     
     def _send_message(self):
         """Envia uma mensagem para todos os IPs de destino"""
         for ip in self.router_table['ip_destino']:
             message = f'!{self.ip};{ip};Oi tudo bem?'
-            self.sock.sendto(message.encode(), (ip, self.port))
+            self.w_sock.sendto(message.encode(), (ip, self.port))
             print(f'---> Mensagem enviada para: {ip}')
             
     def _receive_router_table(self, routers, addr):
@@ -86,9 +91,9 @@ class Router():
         
     def listen(self):
         """Escuta por mensagens de outros roteadores"""
-        self.sock.bind((self.ip, self.port))
+        self.l_sock.bind((self.ip, self.port))
         while True:
-            data, addr = self.sock.recvfrom(1024)
+            data, addr = self.l_sock.recvfrom(1024)
             if not data:
                 continue
             self.receive_time[addr[0]] = time.time()
@@ -114,7 +119,7 @@ class Router():
         self._read_file(filepath)
         message = f'*{self.ip}'
         for ip in self.router_table['ip_destino']:
-            self.sock.sendto(message.encode(), (ip, self.port))
+            self.w_sock.sendto(message.encode(), (ip, self.port))
 
 if __name__ == '__main__':
     router = Router()
