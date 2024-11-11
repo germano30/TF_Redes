@@ -6,7 +6,7 @@ import random
 
 class Router():
     def __init__(self):
-        self.HOST = '172.20.10.2'
+        self.HOST = '192.168.15.21'
         self.PORT = 9000
         self.sock = None
         self.routing_table = {}
@@ -31,7 +31,7 @@ class Router():
 
     def start_routing_table(self):
         print("---> Inicializando tabela de roteamento")
-        with open('config/neighbors.txt') as f:
+        with open('roteadores.txt') as f:
             for neighbor in f:
                 print(f"---> Registrando vizinho: {neighbor}", end='')
                 neighbor = neighbor.strip().replace('\n', '')
@@ -82,7 +82,7 @@ class Router():
                 }
 
     def send_update(self):
-        prepare_routing_table = [f'{dst}-{reach['cost']}' for dst, reach in self.routing_table.items()]
+        prepare_routing_table = [f"{dst}-{reach['cost']}" for dst, reach in self.routing_table.items()]
         routing_table_str = '@'+'@'.join(prepare_routing_table)
         for neighbor_ip in self.NEIGHBORS:
             try:
