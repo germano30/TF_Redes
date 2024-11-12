@@ -8,7 +8,7 @@ import fcntl
 import os
 import selectors
 class Router():
-    def __init__ (self, ip='172.20.10.11', port=9000):
+    def __init__ (self, ip='172.20.10.3', port=9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
         self.ip = ip
         self.port = port
@@ -112,7 +112,10 @@ class Router():
     
     def _read_message(self, message_ori):
         split_message = message_ori.split(';')
-        ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
+        if len(split_message) == 3:
+            ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
+        else:
+            ip_ori, message = split_message[0][1:], split_message[-1]
         if ip_dest == self.ip:
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem recebida de {ip_ori}:\n   - '{message}'\n")
         else:
