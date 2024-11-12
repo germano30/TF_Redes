@@ -72,8 +72,9 @@ class Router():
     def _send_message(self):
         """Envia uma mensagem para todos os IPs de destino"""
         for ip in self.router_table['ip_destino']:
+            idx = self._get_index(ip)
             message = f'!{self.ip};{ip};Oi tudo bem?'
-            self.s_sock.sendto(message.encode(), (ip, self.port))
+            self.s_sock.sendto(message.encode(), (self.router_table['ip_saida'][idx], self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\nMensagem enviada para: {ip}\n   - Conteúdo: '{message}'\n")
             
     def _receive_router_table(self, routers, addr):
@@ -100,10 +101,16 @@ class Router():
                     print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Rota existente atualizada: {dest_ip}\n")
                     self._print_router_table()
     
-    def _print_message(self, message, ip_ori):
-        message = message.split(';')[-1]
-        print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem recebida de {ip_ori}:\n   - '{message}'\n")
- 
+    def _read_message(self, message_ori):
+        split_message = message_ori.split(';')
+        ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
+        if ip_dest == self.ip:
+            print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem recebida de {ip_ori}:\n   - '{message}'\n")
+        else:
+            idx = self._get_index(ip_dest)
+            print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Repassando a mensagem de {ip_ori}\n")
+            self.l_sock.sendto(message_ori.encoded(),(self.router_table["ip_saida"][idx],self.port))
+
     def _print_router_table(self):
         """Imprime a tabela de roteamento em formato tabular"""
         headers = ["IP Destino", "Métrica", "IP Saída"]
@@ -140,7 +147,7 @@ class Router():
             if data.startswith('@'):
                 self._receive_router_table(data, addr)
             elif data.startswith('!'):
-                self._print_message(data, addr[0])
+                self._read_message(data, addr[0])
             elif data.startswith('*'):
                 self._new_router(addr[0], 1, addr[0])
             else:
