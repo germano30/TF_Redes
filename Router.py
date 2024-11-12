@@ -3,7 +3,10 @@ import time
 import threading
 from tabulate import tabulate
 from datetime import datetime
-
+import sys
+import fcntl
+import os
+import selectors
 class Router():
     def __init__ (self, ip='172.20.10.11', port=9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
@@ -61,21 +64,27 @@ class Router():
     
     def _send_router_table(self): 
         """Envia a tabela de roteamento para todos os IPs de destino"""
-        message = ''.join([
-            f"@{ip_dest}-{met}" 
-            for ip_dest, met in zip(self.router_table['ip_destino'], self.router_table['metrica'])
-        ])
-        for ip in self.router_table['ip_destino']:
-            self.s_sock.sendto(message.encode(), (ip, self.port))
-            print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Tabela de roteamento enviada para: {ip}\n")
+        try:
+            message = ''.join([
+                f"@{ip_dest}-{met}" 
+                for ip_dest, met in zip(self.router_table['ip_destino'], self.router_table['metrica'])
+            ])
+            for ip in self.router_table['ip_destino']:
+                self.s_sock.sendto(message.encode(), (ip, self.port))
+                print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Tabela de roteamento enviada para: {ip}\n")
+        except:
+            print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Erro ao mandar a tabela de roteamento\n")
     
-    def _send_message(self):
+    def _send_message(self,message,ip):
         """Envia uma mensagem para todos os IPs de destino"""
-        for ip in self.router_table['ip_destino']:
+        try:
             idx = self._get_index(ip)
-            message = f'!{self.ip};{ip};Oi tudo bem?'
+            message = f'!{self.ip};{ip}{message}'
             self.s_sock.sendto(message.encode(), (self.router_table['ip_saida'][idx], self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\nMensagem enviada para: {ip}\n   - Conteúdo: '{message}'\n")
+        except:
+            print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Erro ao mandar a mensagem: {message}\n")
+
             
     def _receive_router_table(self, routers, addr):
         """Recebe mensagens de roteadores vizinhos e atualiza a tabela de roteamento"""
@@ -132,6 +141,20 @@ class Router():
         else:
             print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Rota já existente: {dest_ip}\n")
 
+    def _handle_keyboard_input(self, stdin):
+        """Detecta se algo foi enviado no terminal."""
+        user_input = stdin.read().strip()
+        if user_input:
+            if user_input.startswith('!'):
+                try:
+                    split_message = user_input.split(';')
+                    dest, message = split_message[0][1:], split_message[1]
+                    self._send_message(message, dest)
+                except:
+                    print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Erro ao mandar a mensagem: {message}\n")
+            else: 
+                print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem fora do padrão: {user_input}\n")
+
     def listen(self):
         """Escuta por mensagens de outros roteadores"""
         while True:
@@ -154,17 +177,35 @@ class Router():
                 print(f"\n[AVISO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Prefixo desconhecido: {data[0]}\n")
     
     def sender(self):
-        """Envia mensagens para outros roteadores"""
+        """Envia mensagens para outros roteadores e monitora entrada do teclado."""
+        # https://stackoverflow.com/questions/21791621/taking-input-from-sys-stdin-non-blocking
+        # set sys.stdin non-blocking
+        orig_fl = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
+        fcntl.fcntl(sys.stdin, fcntl.F_SETFL, orig_fl | os.O_NONBLOCK)
+        
+        # Create a selector and register sys.stdin for keyboard input events
+        m_selector = selectors.DefaultSelector()
+        m_selector.register(sys.stdin, selectors.EVENT_READ, self._handle_keyboard_input)
+
         last_print_router_table = time.time()
+        last_send_router_table = time.time()
+
         while True:
-            if time.time() - last_print_router_table > 20:
+            # Print the router table every 30 seconds
+            if time.time() - last_print_router_table > 30:
                 self._print_router_table()
                 last_print_router_table = time.time()
-            self._send_router_table()
-            time.sleep(5)
-            self._send_message()
-            time.sleep(10)
-    
+            
+            # Send the router table every 15 seconds
+            if time.time() - last_send_router_table > 15:
+                self._send_router_table()
+                last_send_router_table = time.time()
+            
+            # Check for keyboard input events
+            for k, mask in m_selector.select():
+                callback = k.data # Retrieves _handle_keyboard_input, which was stored as the callback when the selector was registered 
+                callback(k.fileobj) # Calls _handle_keyboard_input, passing k.fileobj (which is sys.stdin) as an argument to the function
+
     def starter(self, filepath):
         self._read_file(filepath)
         message = f'*{self.ip}'
