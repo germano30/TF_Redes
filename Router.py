@@ -79,7 +79,7 @@ class Router():
         """Envia uma mensagem para todos os IPs de destino"""
         try:
             idx = self._get_index(ip)
-            message = f'!{self.ip};{ip}{message}'
+            message = f'!{self.ip};{ip};{message}'
             self.s_sock.sendto(message.encode(), (self.router_table['ip_saida'][idx], self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\nMensagem enviada para: {ip}\n   - Conteúdo: '{message}'\n")
         except:
@@ -112,16 +112,13 @@ class Router():
     
     def _read_message(self, message_ori):
         split_message = message_ori.split(';')
-        if len(split_message) == 3:
-            ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
-        else:
-            ip_ori, message = split_message[0][1:], split_message[-1]
+        ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
         if ip_dest == self.ip:
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem recebida de {ip_ori}:\n   - '{message}'\n")
         else:
             idx = self._get_index(ip_dest)
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Repassando a mensagem de {ip_ori}\n")
-            self.l_sock.sendto(message_ori.encoded(),(self.router_table["ip_saida"][idx],self.port))
+            self.l_sock.sendto(message_ori.encode(),(self.router_table["ip_saida"][idx],self.port))
 
     def _print_router_table(self):
         """Imprime a tabela de roteamento em formato tabular"""
