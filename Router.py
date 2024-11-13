@@ -8,7 +8,7 @@ import fcntl
 import os
 import selectors
 class Router():
-    def __init__ (self, ip='172.20.10.3', port=9000):
+    def __init__ (self, ip='192.168.87.174', port=9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
         self.ip = ip
         self.port = port
@@ -80,6 +80,7 @@ class Router():
         try:
             idx = self._get_index(ip)
             message = f'!{self.ip};{ip};{message}'
+            message = f'!{self.ip};{ip};{message}'
             self.s_sock.sendto(message.encode(), (self.router_table['ip_saida'][idx], self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\nMensagem enviada para: {ip}\n   - Conteúdo: '{message}'\n")
         except:
@@ -110,14 +111,15 @@ class Router():
                     print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Rota existente atualizada: {dest_ip}\n")
                     self._print_router_table()
     
-    def _read_message(self, message_ori):
+    def _read_message(self, message_ori, ip_ori):
         split_message = message_ori.split(';')
-        ip_ori, ip_dest, message = split_message[0][1:], split_message[1], split_message[-1]
+        ip_dest, message = split_message[1], split_message[-1]
         if ip_dest == self.ip:
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem recebida de {ip_ori}:\n   - '{message}'\n")
         else:
             idx = self._get_index(ip_dest)
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Repassando a mensagem de {ip_ori}\n")
+            self.l_sock.sendto(message_ori.encode(),(self.router_table["ip_saida"][idx],self.port))
             self.l_sock.sendto(message_ori.encode(),(self.router_table["ip_saida"][idx],self.port))
 
     def _print_router_table(self):
