@@ -8,7 +8,7 @@ import fcntl
 import os
 import selectors
 class Router():
-    def __init__ (self, ip='192.168.87.174', port=9000):
+    def __init__ (self, ip='172.20.10.12', port=9000):
         self.router_table = {'ip_destino': [], 'metrica': [], 'ip_saida': []}
         self.ip = ip
         self.port = port
@@ -79,7 +79,6 @@ class Router():
         """Envia uma mensagem para todos os IPs de destino"""
         try:
             idx = self._get_index(ip)
-            message = f'!{self.ip};{ip};{message}'
             message = f'!{self.ip};{ip};{message}'
             self.s_sock.sendto(message.encode(), (self.router_table['ip_saida'][idx], self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]\nMensagem enviada para: {ip}\n   - Conteúdo: '{message}'\n")
@@ -204,13 +203,14 @@ class Router():
                 last_send_router_table = time.time()
             
             # Check for keyboard input events
-            for k, mask in m_selector.select():
+            for k, mask in m_selector.select(timeout = 0.1):
                 callback = k.data # Retrieves _handle_keyboard_input, which was stored as the callback when the selector was registered 
                 callback(k.fileobj) # Calls _handle_keyboard_input, passing k.fileobj (which is sys.stdin) as an argument to the function
 
     def starter(self, filepath):
         self._read_file(filepath)
         message = f'*{self.ip}'
+        self._send_router_table()
         for ip in self.router_table['ip_destino']:
             self.s_sock.sendto(message.encode(), (ip, self.port))
             print(f"\n[INFO - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Mensagem de entrada na rede enviada para: {ip}\n")
